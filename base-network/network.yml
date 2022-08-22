@@ -1,70 +1,50 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: CloudFormation Base Network Stack
+
+Parameters:
+  VPCName:
+    Description: The name of the VPC.
+    Type: String
+
+  VPCCidr:
+    Description: The CIDR block for the VPC.
+    Type: String
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+
+  PublicSubnetCidr:
+    Description: The CIDR block for the public subnet located in Availability Zone 1.
+    Type: String
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+
+  PrivateSubnetCidr:
+    Description: The CIDR block for the public subnet located in Availability Zone 2.
+    Type: String
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+
+  AvailabilityZones:
+      Description: The list of Availability Zones to use for the subnets in the VPC.
+      Type: List<AWS::EC2::AvailabilityZone::Name>
+
 Resources:
+
+# VPC
   VPC:
     Type: 'AWS::EC2::VPC'
     Properties:
-      CidrBlock: 10.104.131.0/25
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      CidrBlock: !Ref VPCCidr
       Tags:
         - Key: Application
           Value: !Ref 'AWS::StackId'
-  Subnet01:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select 
-        - 0
-        - !GetAZs 
-          Ref: 'AWS::Region'
-      CidrBlock: 10.104.131.0/27
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-  Subnet02:
-    Type: 'AWS::EC2::Subnet'
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select 
-        - 1
-        - !GetAZs 
-          Ref: 'AWS::Region'
-      CidrBlock: 10.104.131.32/27
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-  InternetGateway:
-    Type: 'AWS::EC2::InternetGateway'
-    Properties:
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-  AttachGateway:
-    Type: 'AWS::EC2::VPCGatewayAttachment'
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-  RouteTable:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Application
-          Value: !Ref 'AWS::StackId'
-  Route:
-    Type: 'AWS::EC2::Route'
-    DependsOn: AttachGateway
-    Properties:
-      RouteTableId: !Ref RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-  Subnet01RouteTableAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref Subnet01
-      RouteTableId: !Ref RouteTable
-  Subnet02RouteTableAssociation:
-    Type: 'AWS::EC2::SubnetRouteTableAssociation'
-    Properties:
-      SubnetId: !Ref Subnet02
-      RouteTableId: !Ref RouteTable
+        - Key: Name
+          Value: !Ref VPCName
+
+# NACL
   NetworkAcl:
     Type: 'AWS::EC2::NetworkAcl'
     Properties:
@@ -72,6 +52,7 @@ Resources:
       Tags:
         - Key: Application
           Value: !Ref 'AWS::StackId'
+
   InboundHTTPNetworkAclEntry:
     Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
@@ -81,6 +62,7 @@ Resources:
       RuleAction: allow
       Egress: 'false'
       CidrBlock: 0.0.0.0/0
+
   OutBoundHTTPNetworkAclEntry:
     Type: 'AWS::EC2::NetworkAclEntry'
     Properties:
@@ -90,13 +72,101 @@ Resources:
       RuleAction: allow
       Egress: 'true'
       CidrBlock: 0.0.0.0/0
-  Subnet01NetworkAclAssociation:
+
+# IGW
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+# Public Subnet
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !Ref AvailabilityZones]
+      CidrBlock: !Ref PublicSubnetCidr
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: AZ
+          Value: !Select [0, !Ref AvailabilityZones]
+
+  PublicSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+
+  PublicRouteIGW:
+    Type: 'AWS::EC2::Route'
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicSubnetRouteTable
+
+  PublicSubnetNetworkAclAssociation:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
     Properties:
-      SubnetId: !Ref Subnet01
+      SubnetId: !Ref PublicSubnet
       NetworkAclId: !Ref NetworkAcl
-  Subnet02NetworkAclAssociation:
+
+# Private Subnet
+  PrivateSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !Ref AvailabilityZones]
+      CidrBlock: !Ref PrivateSubnetCidr
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: AZ
+          Value: !Select [1, !Ref AvailabilityZones]
+
+  PrivateSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+
+  PrivateSubnetRouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateSubnetRouteTable
+
+  PrivateSubnetNetworkAclAssociation:
     Type: 'AWS::EC2::SubnetNetworkAclAssociation'
     Properties:
-      SubnetId: !Ref Subnet02
+      SubnetId: !Ref PrivateSubnet
       NetworkAclId: !Ref NetworkAcl
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+
+  PublicSubnet:
+    Value: !Ref PublicSubnet
+
+  PrivateSubnet:
+    Value: !Ref PrivateSubnet
