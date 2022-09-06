@@ -16,7 +16,7 @@ Parameters:
   VPCName:
     Description: The name of the VPC.
     Type: String
-    Default: cfn-workshop-vpc
+    Default: cfn-template-vpc
 
   VPCCidr:
     Description: The CIDR block for the VPC.
@@ -25,17 +25,17 @@ Parameters:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
 
-  PublicSubnetCidr:
+  AZ1PublicSubnetCidr:
     Description: The CIDR block for the public subnet located in Availability Zone 1.
     Type: String
-    Default: 10.101.125.0/26
+    Default: 10.101.125.0/27
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
 
-  PrivateSubnetCidr:
-    Description: The CIDR block for the private subnet located in Availability Zone 2.
+  AZ1PrivateSubnetCidr:
+    Description: The CIDR block for the private subnet located in Availability Zone 1.
     Type: String
-    Default: 10.101.125.64/26
+    Default: 10.101.125.32/27
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
     ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
 
@@ -60,8 +60,8 @@ Resources:
           - !Ref AvailabilityZones
         VPCCidr: !Ref VPCCidr
         VPCName: !Ref VPCName
-        PublicSubnetCidr: !Ref PublicSubnetCidr
-        PrivateSubnetCidr: !Ref PrivateSubnetCidr
+        PublicSubnetCidr: !Ref AZ1PublicSubnetCidr
+        PrivateSubnetCidr: !Ref AZ1PrivateSubnetCidr
 
   IamStack:
     Type: AWS::CloudFormation::Stack
